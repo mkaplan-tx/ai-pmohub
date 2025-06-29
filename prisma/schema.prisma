@@ -8,10 +8,192 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  password      String
-  emailVerified DateTime?
-  image         String?
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String?
+  password        String
+  emailVerified   DateTime?
+  image           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  projects        ProjectMember[]
+  ownedProjects   Project[]        @relation("ProjectOwner")
+  raidItemsOwned  RaidItem[]
+  changeRequests  ChangeRequest[]
+  meetingInsights MeetingInsight[]
+}
+
+model Project {
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  ownerId             String
+  owner               User                 @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members             ProjectMember[]
+  foundationDocuments FoundationDocument[]
+  meetings            Meeting[]
+  raidLog             RaidItem[]
+  changeRequests      ChangeRequest[]
+  statusReports       StatusReport[]
+  lessonsLearned      LessonLearned[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model FoundationDocument {
+  id        String            @id @default(cuid())
+  projectId String
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      FoundationDocType
+  status    DocumentStatus    @default(NOT_STARTED)
+  content   Json
+  version   String            @default("1.0")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+enum FoundationDocType {
+  PROJECT_CHARTER
+  STAKEHOLDER_REGISTER
+  PROJECT_MANAGEMENT_PLAN
+  SCOPE_MANAGEMENT_PLAN
+  WBS_DICTIONARY
+  SCHEDULE_MANAGEMENT_PLAN
+  COST_MANAGEMENT_PLAN
+  QUALITY_MANAGEMENT_PLAN
+  RESOURCE_MANAGEMENT_PLAN
+  COMMUNICATIONS_MANAGEMENT_PLAN
+  RISK_MANAGEMENT_PLAN
+  PROCUREMENT_MANAGEMENT_PLAN
+  STAKEHOLDER_ENGAGEMENT_PLAN
+}
+
+enum DocumentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+}
+
+model Meeting {
+  id           String           @id @default(cuid())
+  projectId    String
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  date         DateTime
+  audioFileUrl String?
+  transcript   String?
+  insights     MeetingInsight[]
+  createdAt    DateTime         @default(now())
+}
+
+model MeetingInsight {
+  id        String      @id @default(cuid())
+  meetingId String
+  meeting   Meeting     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  type      InsightType
+  content   String
+  ownerId   String?
+  owner     User?       @relation(fields: [ownerId], references: [id])
+  dueDate   DateTime?
+  isTriaged Boolean     @default(false)
+  createdAt DateTime    @default(now())
+}
+
+enum InsightType {
+  DECISION
+  ACTION_ITEM
+  RAID_CANDIDATE_RISK
+  RAID_CANDIDATE_ISSUE
+  RAID_CANDIDATE_DEPENDENCY
+  RAID_CANDIDATE_ASSUMPTION
+}
+
+model RaidItem {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type        RaidType
+  description String
+  priority    RaidPriority
+  ownerId     String
+  owner       User         @relation(fields: [ownerId], references: [id])
+  status      RaidStatus
+  notes       String?
+  mitigation  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum RaidType {
+  RISK
+  ISSUE
+  DEPENDENCY
+  ASSUMPTION
+}
+
+enum RaidPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RaidStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model StatusReport {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title             String
+  weekEndingDate    DateTime
+  templateStyle     String
+  generatedPdfUrl   String?
+  generatedMarkdown String?
+  createdAt         DateTime @default(now())
+}
+
+model ChangeRequest {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submittedById  String
+  submittedBy    User     @relation(fields: [submittedById], references: [id])
+  title          String
+  description    String
+  impact         String
+  proposedChange String
+  status         CRStatus @default(PENDING)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum CRStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LessonLearned {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  isSuccess   Boolean
+  description String
+  createdAt   DateTime @default(now())
 }
