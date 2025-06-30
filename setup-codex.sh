@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# 1) Start Postgres (if you really need it inside the container)
-#    * Codex containers run as root, so this works here but would fail elsewhere
+# 1) Install & start Postgres
+export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y postgresql
+apt-get install -y postgresql postgresql-client
+
 service postgresql start
 
-# 2) Create the DB & role (no IF NOT EXISTS in Postgres)
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='ai-pmohub'" \
-  | grep -q 1 || sudo -u postgres createdb -O postgres ai-pmohub
+# 2) Ensure the ai-pmohub database exists
+if ! sudo -iu postgres psql -lqt \
+       | cut -d \| -f 1 \
+       | grep -qw ai-pmohub
+then
+  echo "Creating ai-pmohub database..."
+  sudo -u postgres createdb -O postgres ai-pmohub
+else
+  echo "Database ai-pmohub already exists; skipping creation."
+fi
 
-# 3) Install & generate Prisma
+# 3) Install JS deps & generate Prisma client
 npm ci
 npx prisma generate
 
-# 4) Push schema
+# 4) Push your Prisma schema
 npx prisma db push --accept-data-loss
+
